@@ -2,7 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QSerialPort>
+#include "portcontroller.h"
+#include "logcontroller.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -19,22 +20,12 @@ public:
     ~MainWindow();
 
 private slots:
-    void openPorts();
-    void closePorts();
-    void sendPingFromA();
-    void sendPingFromB();
-    void onPortAReady();
-    void onPortBReady();
-    void clearLog();
-    void sendCustomMessage();
 
 private:
     Ui::MainWindow *ui;
+    PortController *controller;
+    LogController *logger;
 
-    QSerialPort *portA;
-    QSerialPort *portB;
-
-    void log(const QString &text);
 };
 
 #endif // MAINWINDOW_H

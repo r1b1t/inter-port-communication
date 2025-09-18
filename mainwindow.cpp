@@ -1,185 +1,53 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-
+#include "portcontroller.h"
 #include <QDateTime>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
-    , portA(new QSerialPort(this))
-    , portB(new QSerialPort(this))
+    , controller(new PortController(this))   // <-- PortController eklendi
+    , logger(nullptr)
 {
     ui->setupUi(this);
+    logger = new LogController(ui->textBrowser, this);
+
 
     // Varsayılan port isimleri
     ui->lineEdit->setText("COM1");
     ui->lineEdit_2->setText("COM2");
 
-    // Buton bağlantıları
-    connect(ui->pushButton,   &QPushButton::clicked, this, &MainWindow::openPorts);
-    connect(ui->pushButton_2, &QPushButton::clicked, this, &MainWindow::closePorts);
-    connect(ui->pushButton_3, &QPushButton::clicked, this, &MainWindow::sendPingFromA);
-    connect(ui->pushButton_4, &QPushButton::clicked, this, &MainWindow::sendPingFromB);
-    connect(ui->pushButton_5, &QPushButton::clicked, this, &MainWindow::clearLog);
-    connect(ui->pushButton_6, &QPushButton::clicked, this, &MainWindow::sendCustomMessage);
+    // Controller sinyalleri MainWindow slotlarına bağla
+    connect(controller, &PortController::logMessage, logger, &LogController::log);
+    connect(controller, &PortController::messageReceived, this, [=](QString who, QString msg){
+        logger->log(who + " received: " + msg);
+    });
+
+    // UI butonlarını controller’a bağla
+    connect(ui->pushButton, &QPushButton::clicked, this, [=]{
+        controller->openPorts(ui->lineEdit->text(), ui->lineEdit_2->text());
+    });
+    connect(ui->pushButton_2, &QPushButton::clicked, controller, &PortController::closePorts);
+
+    connect(ui->pushButton_3, &QPushButton::clicked, controller, &PortController::sendPingFromA);
+
+    connect(ui->pushButton_4, &QPushButton::clicked, controller, &PortController::sendPingFromB);
+
+    // Temizleme butonu
+    connect(ui->pushButton_5, &QPushButton::clicked, logger, &LogController::clear);
+
+    connect(ui->pushButton_6, &QPushButton::clicked, this, [=]{
+        controller->sendCustomMessage(ui->comboBox->currentText(), ui->lineEdit_3->text());
+        ui->lineEdit_3->clear();
+    });
 
 
-    // Port bağlantıları
-    connect(portA, &QSerialPort::readyRead, this, &MainWindow::onPortAReady);
-    connect(portB, &QSerialPort::readyRead, this, &MainWindow::onPortBReady);
 }
 
 MainWindow::~MainWindow()
 {
-    closePorts();
+    disconnect(controller, nullptr, this, nullptr);  // controller → MainWindow bağlantılarını kopar
     delete ui;
 }
 
-void MainWindow::log(const QString &text)
-{
-    QString ts = QDateTime::currentDateTime().toString("HH:mm:ss.zzz");
-    ui->textBrowser->append(QString("[%1] %2").arg(ts, text));
-}
-
-void MainWindow::openPorts()
-{
-    if (portA->isOpen() || portB->isOpen()) {
-        log("Portlar zaten açık.");
-        return;
-    }
-
-    QString nameA = ui->lineEdit->text().trimmed();
-    QString nameB = ui->lineEdit_2->text().trimmed();
-
-    if (nameA.isEmpty() || nameB.isEmpty()) {
-        log("Port isimlerini giriniz.");
-        return;
-    }
-
-    portA->setPortName(nameA);
-    portA->setBaudRate(QSerialPort::Baud9600);
-    portA->setDataBits(QSerialPort::Data8);
-    portA->setParity(QSerialPort::NoParity);
-    portA->setStopBits(QSerialPort::OneStop);
-
-    portB->setPortName(nameB);
-    portB->setBaudRate(QSerialPort::Baud9600);
-    portB->setDataBits(QSerialPort::Data8);
-    portB->setParity(QSerialPort::NoParity);
-    portB->setStopBits(QSerialPort::OneStop);
-
-    if (!portA->open(QIODevice::ReadWrite)) {
-        log("PortA açılamadı: " + portA->errorString());
-        return;
-    }
-    if (!portB->open(QIODevice::ReadWrite)) {
-        log("PortB açılamadı: " + portB->errorString());
-        portA->close();
-        return;
-    }
-
-    log(QString("Portlar açıldı: %1 <-> %2").arg(nameA, nameB));
-}
-
-void MainWindow::closePorts()
-{
-    if (portA->isOpen()) portA->close();
-    if (portB->isOpen()) portB->close();
-    log("Portlar kapatıldı.");
-}
-
-void MainWindow::sendPingFromA()
-{
-    if (!portA->isOpen()) {
-        log("PortA açık değil.");
-        return;
-    }
-    QByteArray msg = "PING\n";
-    portA->write(msg);
-    portA->flush();
-    log("A -> PING");
-}
-
-void MainWindow::sendPingFromB()
-{
-    if (!portB->isOpen()) {
-        log("PortB açık değil.");
-        return;
-    }
-    QByteArray msg = "PING\n";
-    portB->write(msg);
-    portB->flush();
-    log("B -> PING");
-}
-
-void MainWindow::onPortAReady()
-{
-    QByteArray data = portA->readAll();
-    QString s = QString::fromUtf8(data).trimmed();
-    if (s.isEmpty()) return;
-
-    log("PortA received: " + s);
-    if (s == "PING") {
-        portA->write("PONG\n");
-        portA->flush();
-        log("PortA -> PONG");
-    } else if (s == "PONG") {
-        log("PortA got PONG");
-    }
-}
-
-void MainWindow::onPortBReady()
-{
-    QByteArray data = portB->readAll();
-    QString s = QString::fromUtf8(data).trimmed();
-    if (s.isEmpty()) return;
-
-    log("PortB received: " + s);
-    if (s == "PING") {
-        portB->write("PONG\n");
-        portB->flush();
-        log("PortB -> PONG");
-    } else if (s == "PONG") {
-        log("PortB got PONG");
-    }
-}
-
-void MainWindow::clearLog()
-{
-    ui->textBrowser->clear();   // QTextBrowser içindeki tüm yazıları siler
-}
-
-void MainWindow::sendCustomMessage()
-{
-    QString sender = ui->comboBox->currentText();   // "A" veya "B"
-    QString message = ui->lineEdit_3->text().trimmed();
-
-    if (message.isEmpty()) {
-        log("Mesaj boş olamaz.");
-        return;
-    }
-
-    QByteArray data = message.toUtf8() + "\n";  // \n ekledik, karşı taraf satır satır okusun
-
-    if (sender == "A") {
-        if (!portA->isOpen()) {
-            log("PortA açık değil, mesaj gönderilemedi.");
-            return;
-        }
-        portA->write(data);
-        portA->flush();
-        log("A -> " + message);
-    } else if (sender == "B") {
-        if (!portB->isOpen()) {
-            log("PortB açık değil, mesaj gönderilemedi.");
-            return;
-        }
-        portB->write(data);
-        portB->flush();
-        log("B -> " + message);
-    }
-
-    // Mesaj kutusunu temizleyelim
-    ui->lineEdit_3->clear();
-}
 

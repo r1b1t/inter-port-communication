@@ -11,6 +11,9 @@ qt_add_executable(gimbal_test
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
+    portcontroller.cpp
+    portcontroller.h
+    logcontroller.h logcontroller.cpp
 )
 
 target_link_libraries(gimbal_test
