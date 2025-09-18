@@ -1,0 +1,24 @@
+# Qt build klasörleri
+build*/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+
+# Qt Creator ayar dosyaları
+*.user
+*.pro.user
+
+# Derleme çıktıları
+*.exe
+*.dll
+*.pdb
+*.obj
+*.o
+
+# IDE klasörleri
+.vscode/
+.idea/
+
+# Sistem
+.DS_Store
+Thumbs.db
