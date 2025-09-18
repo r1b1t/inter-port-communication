@@ -26,6 +26,7 @@ private slots:
     void onPortAReady();
     void onPortBReady();
     void clearLog();
+    void Test();
 
 private:
     Ui::MainWindow *ui;
