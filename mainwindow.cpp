@@ -21,6 +21,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->pushButton_3, &QPushButton::clicked, this, &MainWindow::sendPingFromA);
     connect(ui->pushButton_4, &QPushButton::clicked, this, &MainWindow::sendPingFromB);
     connect(ui->pushButton_5, &QPushButton::clicked, this, &MainWindow::clearLog);
+    connect(ui->pushButton_6, &QPushButton::clicked, this, &MainWindow::sendCustomMessage);
+
 
     // Port bağlantıları
     connect(portA, &QSerialPort::readyRead, this, &MainWindow::onPortAReady);
@@ -146,3 +148,38 @@ void MainWindow::clearLog()
 {
     ui->textBrowser->clear();   // QTextBrowser içindeki tüm yazıları siler
 }
+
+void MainWindow::sendCustomMessage()
+{
+    QString sender = ui->comboBox->currentText();   // "A" veya "B"
+    QString message = ui->lineEdit_3->text().trimmed();
+
+    if (message.isEmpty()) {
+        log("Mesaj boş olamaz.");
+        return;
+    }
+
+    QByteArray data = message.toUtf8() + "\n";  // \n ekledik, karşı taraf satır satır okusun
+
+    if (sender == "A") {
+        if (!portA->isOpen()) {
+            log("PortA açık değil, mesaj gönderilemedi.");
+            return;
+        }
+        portA->write(data);
+        portA->flush();
+        log("A -> " + message);
+    } else if (sender == "B") {
+        if (!portB->isOpen()) {
+            log("PortB açık değil, mesaj gönderilemedi.");
+            return;
+        }
+        portB->write(data);
+        portB->flush();
+        log("B -> " + message);
+    }
+
+    // Mesaj kutusunu temizleyelim
+    ui->lineEdit_3->clear();
+}
+
