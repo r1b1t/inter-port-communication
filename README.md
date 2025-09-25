@@ -15,6 +15,7 @@ QT ile hazırlanmış kolay kullanılabilir arayüz
 
 Not: Localde port açmak için Virtual Serial Port Tools uygulaması kullanılmıştır.
 
+
 🇬🇧 English Description:
 
 This project is a simple QT application.
